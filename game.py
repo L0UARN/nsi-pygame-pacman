@@ -134,17 +134,17 @@ class Ennemy():
 class Level():
     def __init__(self, image, grid):
         self.image = pg.image.load(image).convert()
-        
+
         self.grid = []
         for line in open(grid).read().split("\n"):
             self.grid.append(line.split(","))
 
     def replace_point(self, x, y, value):
         self.grid[y][x] = value
-    
+
     def draw(self, screen):
         screen.blit(self.image, (0, 0))
-    
+
     def get_grid(self):
         return self.grid
 
@@ -167,10 +167,11 @@ class Game():
         self.collectible_sprite = pg.image.load("sprites/collectible.png").convert()
         self.collectible_sprite.set_colorkey((255, 255, 255))
 
-        self.ennemies = []
-        self.ennemies.append(Ennemy("ennemy_blue.png", 7, 7))
-        self.ennemies.append(Ennemy("ennemy_green.png", 7, 8))
-        self.ennemies.append(Ennemy("ennemy_red.png", 8, 7))
+        self.ennemies = [
+            Ennemy("ennemy_blue.png", 7, 7),
+            Ennemy("ennemy_green.png", 7, 8),
+            Ennemy("ennemy_red.png", 8, 7)
+        ]
 
         self.score = 0
         self.max_score = 0
