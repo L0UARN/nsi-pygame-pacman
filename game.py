@@ -76,13 +76,13 @@ class Ennemy():
             # Get a list of the available directions
             # On récupère une liste de toute les directions disponibles
             available_directions = []
-            if grid[self.y - 1][self.x] == "c" or grid[self.y - 1][self.x] == "v" or grid[self.y - 1][self.x] == "e":
+            if grid[self.y - 1][self.x] != "w":
                 available_directions.append("north")
-            if grid[self.y][self.x - 1] == "c" or grid[self.y][self.x - 1] == "v" or grid[self.y][self.x - 1] == "e":
+            if grid[self.y][self.x - 1] != "w":
                 available_directions.append("west")
-            if grid[self.y + 1][self.x] == "c" or grid[self.y + 1][self.x] == "v" or grid[self.y + 1][self.x] == "e":
+            if grid[self.y + 1][self.x] != "w":
                 available_directions.append("south")
-            if grid[self.y][self.x + 1] == "c" or grid[self.y][self.x + 1] == "v" or grid[self.y][self.x + 1] == "e":
+            if grid[self.y][self.x + 1] != "w":
                 available_directions.append("east")
 
             # 1/2 chances of changing directions if more than 2 are available
@@ -132,18 +132,34 @@ class Ennemy():
         return self.y
 
 class Level():
-    def __init__(self, image, grid):
+    def __init__(self, image, grid, ennemy_count):
         self.image = pg.image.load(image).convert()
 
         self.grid = []
         for line in open(grid).read().split("\n"):
             self.grid.append(line.split(","))
 
+        possible_positions = []
+        for i in range(0, len(self.grid)):
+            for j in range(0, len(self.grid[i])):
+                if self.grid[i][j] == "s":
+                    possible_positions.append((i, j))
+
+        self.ennemies = []
+        for i in range(0, ennemy_count):
+            sprite = ["ennemy_blue.png", "ennemy_green.png", "ennemy_red.png"][rd.randint(0, 2)]
+            position = possible_positions[rd.randint(0, len(possible_positions) - 1)]
+
+            self.ennemies.append(Ennemy(sprite, position[0], position[1]))
+
     def replace_point(self, x, y, value):
         self.grid[y][x] = value
 
     def draw(self, screen):
         screen.blit(self.image, (0, 0))
+
+    def get_ennemies(self):
+        return self.ennemies
 
     def get_grid(self):
         return self.grid
@@ -160,23 +176,17 @@ class Game():
         self.load_playing_state()
 
     def load_playing_state(self):
-        self.level = Level("maps/map.png", "maps/map.csv")
+        self.level_1 = Level("maps/map.png", "maps/map.csv", 2)
 
         self.player = Player(8, 12)
 
         self.collectible_sprite = pg.image.load("sprites/collectible.png").convert()
         self.collectible_sprite.set_colorkey((255, 255, 255))
 
-        self.ennemies = [
-            Ennemy("ennemy_blue.png", 7, 7),
-            Ennemy("ennemy_green.png", 7, 8),
-            Ennemy("ennemy_red.png", 8, 7)
-        ]
-
         self.score = 0
         self.max_score = 0
 
-        for line in self.level.get_grid():
+        for line in self.level_1.get_grid():
             self.max_score += line.count("c")
 
         pg.mixer.set_num_channels(2)
@@ -193,8 +203,8 @@ class Game():
         if not self.music_channel.get_busy():
             self.music_channel.play(self.music)
 
-        self.level.draw(self.screen)
-        grid = self.level.get_grid()
+        self.level_1.draw(self.screen)
+        grid = self.level_1.get_grid()
 
         for i in range(0, len(grid)):
             for j in range(0, len(grid[0])):
@@ -205,7 +215,7 @@ class Game():
         self.player.draw(self.screen)
 
         if grid[self.player.get_y()][self.player.get_x()] == "c":
-            self.level.replace_point(self.player.get_x(), self.player.get_y(), "v")
+            self.level_1.replace_point(self.player.get_x(), self.player.get_y(), "v")
             self.score += 1
             self.effect_channel.play(self.pickup_sound)
 
@@ -213,11 +223,11 @@ class Game():
                 self.state = "won"
                 self.load_end_state(True, self.score)
 
-        for i in range(0, len(self.ennemies)):
-            self.ennemies[i].update(grid)
-            self.ennemies[i].draw(self.screen)
+        for i in range(0, len(self.level_1.get_ennemies())):
+            self.level_1.get_ennemies()[i].update(grid)
+            self.level_1.get_ennemies()[i].draw(self.screen)
             
-            if self.ennemies[i].get_x() == self.player.get_x() and self.ennemies[i].get_y() == self.player.get_y():
+            if self.level_1.get_ennemies()[i].get_x() == self.player.get_x() and self.level_1.get_ennemies()[i].get_y() == self.player.get_y():
                 self.music_channel.stop()
                 self.effect_channel.play(self.death_sound)
                 self.state = "end"
