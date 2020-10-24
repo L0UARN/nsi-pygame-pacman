@@ -12,6 +12,7 @@ class Player():
         self.sprite.set_colorkey((255, 255, 255))
 
     def move(self, grid, direction):
+        # On doit verifier les possibles collisions avant de bouger
         if direction == "north":
             if grid[self.y - 1][self.x] == "c" or grid[self.y - 1][self.x] == "v":
                 self.y -= 1
@@ -26,8 +27,10 @@ class Player():
                 self.x += 1
 
     def update(self, grid):
+        # Cette fonction permet de recuperer les touches enfoncees
         pressed_keys = pg.key.get_pressed()
 
+        # On fait bouger notre joueur avec les fleches
         if pressed_keys[pg.K_UP]:
             self.move(grid, "north")
         if pressed_keys[pg.K_LEFT]:
@@ -56,6 +59,7 @@ class Ennemy():
         self.sprite.set_colorkey((255, 255, 255))
 
     def move(self, grid, direction):
+        # Pareil que pour le joueur, il faut verifier les collisions avant de bouger
         if direction == "north":
             if grid[self.y - 1][self.x] != "w":
                 self.y -= 1
@@ -126,6 +130,9 @@ class Ennemy():
         return self.y
 
 class Level():
+    # Charge l'image de fond du niveau, la "grille" qui correspond a tous les elements
+    # presents dans le niveau (murs, pieces, etc...), et les ennemis en fonction du nombre
+    # d'ennemis demandes
     def __init__(self, image, grid, ennemy_count):
         self.image = pg.image.load(image).convert()
 
@@ -133,12 +140,15 @@ class Level():
         for line in open(grid).read().split("\n"):
             self.grid.append(line.split(","))
 
+        # On cherche dans la grille toutes les positions d'apparitions possibles pour les
+        # ennemis
         possible_positions = []
         for i in range(0, len(self.grid)):
             for j in range(0, len(self.grid[i])):
                 if self.grid[i][j] == "s":
                     possible_positions.append((i, j))
 
+        # On cree les ennemis avec un sprite aleatoire sur une des positions disponibles
         self.ennemies = []
         for i in range(0, ennemy_count):
             sprite = ["ennemy_blue.png", "ennemy_green.png", "ennemy_red.png"][rd.randint(0, 2)]
@@ -158,6 +168,8 @@ class Level():
     def get_grid(self):
         return self.grid
 
+# Cette class permet de controler tous le jeu (le chargement des niveaux, les mises a jour
+# du joueur, des ennemis, du niveau...)
 class Game():
     def __init__(self):
         pg.init()
@@ -214,6 +226,8 @@ class Game():
         self.player.update(grid)
         self.player.draw(self.screen)
 
+        # Permet d'afficher l'annonce de changement de niveau en haut a gauche de l'ecran,
+        # pendant 3 seocndes, avec les 1.5 dernieres secondes en clignotant
         if self.tick <= 12:
             if self.tick <= 6:
                 pg.draw.rect(self.screen, (0, 0, 0), pg.Rect(0, 0, 100, 28))
@@ -222,6 +236,8 @@ class Game():
                 pg.draw.rect(self.screen, (0, 0, 0), pg.Rect(0, 0, 100, 28))
                 self.screen.blit(self.level_text, (0, 0))
 
+        # Permet au joueur de collecter les pieces, et gere le changement de niveau et la
+        # possible victoire
         if grid[self.player.get_y()][self.player.get_x()] == "c":
             self.level.replace_point(self.player.get_x(), self.player.get_y(), "v")
             self.score += 1
@@ -235,6 +251,7 @@ class Game():
                     self.level_number += 1
                     self.load_playing_state()
 
+        # Gere l'interaction entre les ennemis et le joueur, et la possible defaite
         for i in range(0, len(self.level.get_ennemies())):
             self.level.get_ennemies()[i].update(grid)
             self.level.get_ennemies()[i].draw(self.screen)
@@ -262,6 +279,9 @@ class Game():
         self.screen.fill((0, 0, 0))
         self.screen.blit(self.end_text, (128, 128))
 
+    # On utilise un systeme de limitation de mises a jour (ticks) par secondes, de facon a
+    # ce que le jeu ne soit pas plus ou moins rapide en fonction de l'ordinateur sur
+    # lequel on y joue.
     def run(self):
         should_run = True
         last_tick = 0
