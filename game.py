@@ -57,23 +57,21 @@ class Ennemy():
 
     def move(self, grid, direction):
         if direction == "north":
-            if grid[self.y - 1][self.x] == "c" or grid[self.y - 1][self.x] == "v" or grid[self.y - 1][self.x] == "e":
+            if grid[self.y - 1][self.x] != "w":
                 self.y -= 1
         elif direction == "west":
-            if grid[self.y][self.x - 1] == "c" or grid[self.y][self.x - 1] == "v" or grid[self.y][self.x - 1] == "e":
+            if grid[self.y][self.x - 1] != "w":
                 self.x -= 1
         elif direction == "south":
-            if grid[self.y + 1][self.x] == "c" or grid[self.y + 1][self.x] == "v" or grid[self.y + 1][self.x] == "e":
+            if grid[self.y + 1][self.x] != "w":
                 self.y += 1
         elif direction == "east":
-            if grid[self.y][self.x + 1] == "c" or grid[self.y][self.x + 1] == "v" or grid[self.y][self.x + 1] == "e":
+            if grid[self.y][self.x + 1] != "w":
                 self.x += 1
 
     def update(self, grid):
-        # One chance out of 8 to do nothing
-        # Une chance sure 8 de ne rien faire
+        # Une chance sur 8 de ne rien faire
         if rd.randint(0, 7) != 0:
-            # Get a list of the available directions
             # On récupère une liste de toute les directions disponibles
             available_directions = []
             if grid[self.y - 1][self.x] != "w":
@@ -85,7 +83,6 @@ class Ennemy():
             if grid[self.y][self.x + 1] != "w":
                 available_directions.append("east")
 
-            # 1/2 chances of changing directions if more than 2 are available
             # Une chance sur 2 de changer de direction si plus de 2 sont disponibles
             if len(available_directions) > 2:
                 possible_directions = available_directions
@@ -101,7 +98,6 @@ class Ennemy():
                 if rd.randint(0, 1) == 0:
                     self.direction = possible_directions[rd.randint(0, len(possible_directions) - 1)]
 
-            # 1/16 chances of inverting the direction if the opposite direction is the only available one
             # Une chance sur 16 de faire demi-tour si les seules 2 directions dispo sont opposées
             elif (self.direction == "north" or self.direction == "south") and (available_directions.count("north") >= 1 and available_directions.count("south") >= 1):
                 if rd.randint(0, 15) == 0:
@@ -110,12 +106,10 @@ class Ennemy():
                 if rd.randint(0, 15) == 0:
                     self.direction = "east" if self.direction == "west" else "west"
 
-            # Go in a random available direction if only 2 are available
             # On change de direction si seulement 2 sont disponibles
             elif len(available_directions) == 2:
                 self.direction = available_directions[rd.randint(0, 1)]
 
-            # Change direction if only one is available
             # On va vers la seule direction disponible si il n'y en a qu'une
             elif len(available_directions) == 1:
                 self.direction = available_directions[0]
@@ -172,11 +166,12 @@ class Game():
         self.screen = pg.display.set_mode((512, 512))
         pg.display.set_caption("Pacman")
 
+        self.level_number = 1
         self.state = "playing"
         self.load_playing_state()
 
     def load_playing_state(self):
-        self.level_1 = Level("maps/map.png", "maps/map.csv", 2)
+        self.level = Level("maps/map.png", "maps/map.csv", self.level_number)
 
         self.player = Player(8, 12)
 
@@ -186,7 +181,7 @@ class Game():
         self.score = 0
         self.max_score = 0
 
-        for line in self.level_1.get_grid():
+        for line in self.level.get_grid():
             self.max_score += line.count("c")
 
         pg.mixer.set_num_channels(2)
@@ -199,12 +194,17 @@ class Game():
         self.pickup_sound = pg.mixer.Sound("sounds/pickup.ogg")
         self.death_sound = pg.mixer.Sound("sounds/death.ogg")
 
+        self.tick = 0
+
+        font = pg.font.Font("font.ttf", 24)
+        self.level_text = font.render(f"Level {self.level_number}", True, (255, 255, 255))
+
     def update_playing_state(self):
         if not self.music_channel.get_busy():
             self.music_channel.play(self.music)
 
-        self.level_1.draw(self.screen)
-        grid = self.level_1.get_grid()
+        self.level.draw(self.screen)
+        grid = self.level.get_grid()
 
         for i in range(0, len(grid)):
             for j in range(0, len(grid[0])):
@@ -214,24 +214,38 @@ class Game():
         self.player.update(grid)
         self.player.draw(self.screen)
 
+        if self.tick <= 12:
+            if self.tick <= 6:
+                pg.draw.rect(self.screen, (0, 0, 0), pg.Rect(0, 0, 100, 28))
+                self.screen.blit(self.level_text, (0, 0))
+            elif self.tick % 2 == 0:
+                pg.draw.rect(self.screen, (0, 0, 0), pg.Rect(0, 0, 100, 28))
+                self.screen.blit(self.level_text, (0, 0))
+
         if grid[self.player.get_y()][self.player.get_x()] == "c":
-            self.level_1.replace_point(self.player.get_x(), self.player.get_y(), "v")
+            self.level.replace_point(self.player.get_x(), self.player.get_y(), "v")
             self.score += 1
             self.effect_channel.play(self.pickup_sound)
 
             if self.score == self.max_score:
-                self.state = "won"
-                self.load_end_state(True, self.score)
+                if self.level_number == 4:
+                    self.state = "won"
+                    self.load_end_state(True, self.score)
+                else:
+                    self.level_number += 1
+                    self.load_playing_state()
 
-        for i in range(0, len(self.level_1.get_ennemies())):
-            self.level_1.get_ennemies()[i].update(grid)
-            self.level_1.get_ennemies()[i].draw(self.screen)
+        for i in range(0, len(self.level.get_ennemies())):
+            self.level.get_ennemies()[i].update(grid)
+            self.level.get_ennemies()[i].draw(self.screen)
             
-            if self.level_1.get_ennemies()[i].get_x() == self.player.get_x() and self.level_1.get_ennemies()[i].get_y() == self.player.get_y():
+            if self.level.get_ennemies()[i].get_x() == self.player.get_x() and self.level.get_ennemies()[i].get_y() == self.player.get_y():
                 self.music_channel.stop()
                 self.effect_channel.play(self.death_sound)
                 self.state = "end"
                 self.load_end_state(False, self.score)
+        
+        self.tick += 1
 
     def load_end_state(self, won, score):
         font = pg.font.Font("font.ttf", 24)
